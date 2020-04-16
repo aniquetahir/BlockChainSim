@@ -11,6 +11,7 @@ class Entity:
         self.habits = h
         self.temperature = t
         self.wallets = []
+        self.attributes = []
         pass
 
     def add_wallet(self, key) -> Wallet:
@@ -24,8 +25,16 @@ class Entity:
 
 
 class Miner(Entity):
-    def __init__(self, h: List[bool], t: float):
+    def __init__(self, h: List[bool], t: float, mining_power: float):
+        """
+
+        :param h:
+        :param t:
+        :param mining_power:
+        """
         super().__init__(h, t)
+        self.attributes.append('miner')
+        self.mp = mining_power
 
     def mine(self):
         # TODO implement mining

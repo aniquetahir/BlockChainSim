@@ -8,7 +8,7 @@ class Transaction:
         :param inputs: The inputs are a List of {address: amount}
         :param outputs: The outputs are a List of {address: amount}
         """
-        self.id = uuid4()
+        self.id = str(uuid4())
         self.inputs = inputs
         self.outputs = outputs
         is_fine = self._verify()
