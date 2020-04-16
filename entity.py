@@ -1,8 +1,10 @@
 from typing import List
 from wallet import Wallet
+from mesa import Agent
 
 
-class Entity:
+class Entity(Agent):
+    # TODO Agent constructor
     def __init__(self, h: List[bool], t: float):
         """
         :param h: A one-hot vector representing the habits of the user

@@ -1,10 +1,12 @@
 from typing import List, Dict
 from block import Block
+from mesa import Model
 
 
-class Blockchain:
+class Blockchain(Model):
     blocks: List[Block]
 
+    # TODO Model constructor
     def __init__(self, genesis: Block):
         self.blocks = [genesis]
 
