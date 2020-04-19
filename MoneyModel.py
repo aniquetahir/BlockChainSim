@@ -4,7 +4,13 @@ from mesa.time import RandomActivation
 import matplotlib.pyplot as plt
 
 class MoneyModel(Model):
-    def __init__(self, N: int):
+    num_agents: int
+    schedule: RandomActivation
+    habits_range: range
+
+    def __init__(self, N: int, habits_range: range = range(1, 10)):
+        super().__init__()
+        self.habits_range = habits_range
         self.num_agents = N
         self.schedule = RandomActivation(self)
         # Create Agents
