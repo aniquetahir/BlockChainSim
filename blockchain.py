@@ -1,9 +1,8 @@
 from typing import List, Dict
 from block import Block
-from mesa import Model
 
 
-class Blockchain(Model):
+class Blockchain:
     blocks: List[Block]
 
     # TODO Model constructor
