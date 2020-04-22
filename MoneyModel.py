@@ -56,6 +56,7 @@ class MoneyModel(Model):
 
     def step(self):
         self.schedule.step()
+        # Select Miners and Register pending transactions
 
 
 class MoneyAgent(Agent):

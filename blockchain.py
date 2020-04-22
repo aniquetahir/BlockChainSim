@@ -23,6 +23,9 @@ class Blockchain:
         block.prev = last_block.id
         self.blocks.append(block)
 
+    def queue_transaction(self):
+        raise NotImplementedError("Blockchain: Transaction queuing not implemented")
+
 
 class BlockNotFoundException(Exception):
     def __init__(self, message: str):
