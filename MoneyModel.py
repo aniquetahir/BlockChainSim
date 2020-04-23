@@ -6,9 +6,11 @@ import matplotlib.pyplot as plt
 import random
 from blockchain import Blockchain
 from block import Block
+from transaction import Transaction
 
 RANDOM_SEED = 123
 random.seed(RANDOM_SEED)
+
 
 class MoneyModel(Model):
     num_agents: int
@@ -17,6 +19,7 @@ class MoneyModel(Model):
     MAX_HABITS: int
     MINER_PERCENTAGE: float
     blockchain: Blockchain
+    pending_transactions: List[Transaction]
 
     def __init__(self, N: int, habits_range: range = range(1, 10), MAX_HABITS: int = 1000,
                  MINER_PERCENTAGE = 0.1, SELLER_PERCENTAGE = 0.2, EXCHANGE_PERCENTAGE = 0.02):
@@ -25,6 +28,8 @@ class MoneyModel(Model):
         self.habits_range = habits_range
         self.num_agents = N
         self.schedule = RandomActivation(self)
+        self.TRANSACTIONS_PER_BLOCK = 500
+        self.pending_transactions = []
         self.MINER_PERCENTAGE = MINER_PERCENTAGE
         self.SELLER_PERCENTAGE = SELLER_PERCENTAGE
         self.EXCHANGE_PERCENTAGE = EXCHANGE_PERCENTAGE

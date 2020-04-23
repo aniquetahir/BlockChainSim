@@ -19,6 +19,7 @@ class Blockchain:
         raise BlockNotFoundException
 
     def add(self, block: Block):
+        # TODO resolve conflicts
         last_block = self.get_tail()
         block.prev = last_block.id
         self.blocks.append(block)

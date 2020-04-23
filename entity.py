@@ -2,11 +2,13 @@ from typing import List, Dict
 from wallet import Wallet
 from mesa import Agent, Model
 from MoneyModel import MoneyModel
+from block import Block
 import random
 
 
 class Entity(Agent):
     wallets: List[Wallet]
+    model: MoneyModel
 
     # TODO Agent constructor
     def __init__(self, uid: int, model: MoneyModel, h: List[bool], t: float, seller: int = -1):
@@ -15,6 +17,7 @@ class Entity(Agent):
         :param t: A temperature representing the frequency of transactions
         """
         super().__init__(uid, model)
+        self.model = model
         self.habits = h
         self.temperature = t
         self.wallets = []
@@ -76,21 +79,34 @@ class Miner(Entity):
         self.mp = mining_power
         self.add_wallet()
 
-    def mine(self):
+    def mine(self) -> Block:
         # TODO implement mining
         # Get wallet to mine to
+        self.random.choice(self.wallets)
 
-        # register to model as an active miner
+        # register a Block to the model
+        # Get all transactions
+        all_transactions = self.model.pending_transactions.copy()
+        self.random.shuffle(all_transactions)
+        # Pick 500 transactions
+        block_transactions = all_transactions[:500]
 
-        # Register reward to wallet
-        raise NotImplementedError('Mining not implemented')
+        blockchain = self.model.blockchain
+        last_block_id = blockchain.get_tail().id
+        block = Block(last_block_id, block_transactions)
+
+        return block
 
     def sell(self):
         # TODO implement
         # Select an amount to sell
-        # Select a Merchant based on popularity
-        # Send amount to Merchant
-        raise NotImplementedError('Miner selling not implemented')
+        sell_amount = self.get_total_wealth() * self.random.random()
+
+        # Select a Exchange based on popularity
+        exchanges = [x for x in self.model.schedule.agents if isinstance(x, Exchange)]
+        exchange_to_sell: Exchange = self.random.choice(exchanges, [x.popularity for x in exchanges])[0]
+
+        exchange_to_sell.sell(sell_amount)
 
     def step(self):
         self.mine()
@@ -98,10 +114,19 @@ class Miner(Entity):
 
 
 class Exchange(Entity):
+    popularity: float
+
     def __init__(self, uid: int, model: MoneyModel, popularity: float):
         # TODO
         raise NotImplementedError('Exchange Agent cannot be instantiated')
         pass
+
+    def buy(self, amount):
+        raise NotImplementedError('Exchange: Buy not implemented')
+
+    def sell(self, amount):
+        raise NotImplementedError('Exchange: Sell not implemented')
+
 
 class Merchant(Entity):
     def __init__(self):
