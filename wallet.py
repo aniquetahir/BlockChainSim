@@ -1,14 +1,12 @@
 import uuid
 from typing import List
-from MoneyModel import MoneyModel
 
 class Wallet:
     key: str
     balance: float
     utxo: List[float]
-    model: MoneyModel
 
-    def __init__(self, model: MoneyModel, key=None, balance=0):
+    def __init__(self, model, key=None, balance=0):
         if key:
             self.key = key
         else:

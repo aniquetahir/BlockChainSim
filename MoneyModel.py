@@ -7,6 +7,7 @@ import random
 from blockchain import Blockchain
 from block import Block
 from transaction import Transaction
+from typing import List
 
 RANDOM_SEED = 123
 random.seed(RANDOM_SEED)
@@ -35,28 +36,31 @@ class MoneyModel(Model):
         self.EXCHANGE_PERCENTAGE = EXCHANGE_PERCENTAGE
         self.BUYER_PERCENTAGE = 1-MINER_PERCENTAGE-SELLER_PERCENTAGE-EXCHANGE_PERCENTAGE
         self.blockchain = Blockchain(Block('0', []))
+        self.AVG_TRANSACTION = 0.5
+        self.WEALTH_SD = 0.2
+
         agent_classes = random.choices(['miner', 'buyer', 'seller', 'exchange'],
                                        [MINER_PERCENTAGE, self.BUYER_PERCENTAGE, SELLER_PERCENTAGE, EXCHANGE_PERCENTAGE],
                                        k=N)
         # Create Agents
         for i in range(self.num_agents):
-            is_miner_prob = random.random()
+            is_miner_prob = self.random.random()
             # Create habits
             habits = [False]*MAX_HABITS
-            for random_habit in random.choices(range(MAX_HABITS)):
+            for random_habit in self.random.choices(range(MAX_HABITS)):
                 habits[random_habit] = True
 
             # Decide whether the Agent is also a miner
             if agent_classes[i] == 'miner':
-                a = Miner(i, self, habits, random.random(), random.random())
+                a = Miner(i, self, habits, self.random.random(), self.random.random())
             elif agent_classes[i] == 'buyer':
                 a = Entity(i, self, habits, random.random())
             elif agent_classes[i] == 'seller':
                 # TODO add seller agent class
-                a = Merchant()
+                a = Merchant(i, self, habits, self.random.random())
             else:
                 # TODO add exchange agent class
-                a = Exchange()
+                a = Exchange(i, self, self.random.random())
             self.schedule.add(a)
 
     def step(self):
@@ -64,17 +68,17 @@ class MoneyModel(Model):
         # Select Miners and Register pending transactions
 
 
-class MoneyAgent(Agent):
-    def __init__(self, uid: int, model: MoneyModel):
-        super().__init__(uid, model)
-        self.wealth = 1
-
-    def step(self):
-        if self.wealth == 0:
-            return
-        other_agent = self.random.choice(self.model.schedule.agents)
-        other_agent.wealth += 1
-        self.wealth -= 1
+# class MoneyAgent(Agent):
+#     def __init__(self, uid: int, model: MoneyModel):
+#         super().__init__(uid, model)
+#         self.wealth = 1
+#
+#     def step(self):
+#         if self.wealth == 0:
+#             return
+#         other_agent = self.random.choice(self.model.schedule.agents)
+#         other_agent.wealth += 1
+#         self.wealth -= 1
 
 
 if __name__ == "__main__":

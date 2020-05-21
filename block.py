@@ -1,7 +1,6 @@
 from transaction import Transaction
 from typing import List, Dict
 from uuid import uuid4
-from blockchain import Blockchain
 
 
 class Block:
@@ -11,7 +10,7 @@ class Block:
         self.reward = []
         self.id = str(uuid4())
 
-    def add(self, chain: Blockchain, rewards: List[Dict]):
+    def add(self, chain, rewards: List[Dict]):
         """
         :param chain:
         :param rewards:
