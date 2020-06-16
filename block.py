@@ -10,6 +10,15 @@ class Block:
         self.reward = []
         self.id = str(uuid4())
 
+    def transaction_exists(self, tr: Transaction) -> bool:
+        for block_transaction in self.transactions:
+            if block_transaction.id == tr.id:
+                return True
+        return False
+
+    def __len__(self):
+        return len(self.transactions)
+
     def add(self, chain, rewards: List[Dict]):
         """
         :param chain:

@@ -21,6 +21,7 @@ class MoneyModel(Model):
     MINER_PERCENTAGE: float
     blockchain: Blockchain
     pending_transactions: List[Transaction]
+    candidate_blocks: List[Blockchain]
 
     def __init__(self, N: int, habits_range: range = range(1, 10), MAX_HABITS: int = 1000,
                  MINER_PERCENTAGE = 0.1, SELLER_PERCENTAGE = 0.2, EXCHANGE_PERCENTAGE = 0.02):
@@ -31,6 +32,7 @@ class MoneyModel(Model):
         self.schedule = RandomActivation(self)
         self.TRANSACTIONS_PER_BLOCK = 500
         self.pending_transactions = []
+        self.candidate_blocks = []
         self.MINER_PERCENTAGE = MINER_PERCENTAGE
         self.SELLER_PERCENTAGE = SELLER_PERCENTAGE
         self.EXCHANGE_PERCENTAGE = EXCHANGE_PERCENTAGE
@@ -61,6 +63,7 @@ class MoneyModel(Model):
             else:
                 # TODO add exchange agent class
                 a = Exchange(i, self, self.random.random())
+
             self.schedule.add(a)
 
     def step(self):
@@ -83,6 +86,18 @@ class MoneyModel(Model):
 
 if __name__ == "__main__":
     m_model = MoneyModel(10)
+
+    # Print out the different types of Agents
+    buyers = [x for x in m_model.schedule.agents if type(x) == Entity]
+    merchants = [x for x in m_model.schedule.agents if type(x) == Merchant]
+    exchanges = [x for x in m_model.schedule.agents if type(x) == Exchange]
+    miners = [x for x in m_model.schedule.agents if type(x) == Miner]
+
+    print("Buyers: %d" % len(buyers))
+    print("Merchants: %d" % len(merchants))
+    print("Exchanges: %d" % len(exchanges))
+    print("Miners: %d" % len(miners))
+
     for i in range(10):
         m_model.step()
 

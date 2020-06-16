@@ -1,17 +1,24 @@
+from __future__ import annotations
 from typing import List, Dict
 from wallet import Wallet
 from mesa import Agent, Model
 # from MoneyModel import MoneyModel
 from block import Block
+from blockchain import Blockchain
 import random
 from transaction import Transaction
+import typing
+from copy import copy
+
+if typing.TYPE_CHECKING:
+    from MoneyModel import MoneyModel
 
 
 class Entity(Agent):
     wallets: List[Wallet]
 
     # TODO Agent constructor
-    def __init__(self, uid: int, model, h: List[bool], t: float, seller=False):
+    def __init__(self, uid: int, model: 'MoneyModel', h: List[bool], t: float, seller=False):
         """
         :param h: A one-hot vector representing the habits of the user
         :param t: A temperature representing the frequency of transactions
@@ -19,8 +26,9 @@ class Entity(Agent):
         super().__init__(uid, model)
         self.model = model
         self.habits = h
+        self.blockchain = copy(self.model.blockchain)
         self.temperature = t
-        self.wallets = []
+        self.wallets = [Wallet(model)]  # Give each agent at least one empty wallet
         self.attributes = []
         self.seller = seller
         self.add_wallet()
@@ -87,15 +95,16 @@ class Entity(Agent):
         if buy_decision < 0.5:
             # Select an appropriate exchange
             exchanges = [x for x in self.model.schedule.agents if isinstance(x, Exchange)]
-            exchange = self.random.choice(exchanges)
+            if len(exchanges) > 0:
+                exchange = self.random.choice(exchanges)
 
-            # Select a wallet to send to
-            buy_wallet = self.random.choice(self.wallets)
+                # Select a wallet to send to
+                buy_wallet = self.random.choice(self.wallets)
 
-            # Select an amount to buy
-            amount = max(self.random.gauss(self.model.AVG_TRANSACTION, self.model.WEALTH_SD), 0)
+                # Select an amount to buy
+                amount = max(self.random.gauss(self.model.AVG_TRANSACTION, self.model.WEALTH_SD), 0)
 
-            exchange.buy(amount, buy_wallet)
+                exchange.buy(amount, buy_wallet)
 
         # See if the agent makes a transaction based on the temperature
         if self.temperature < self.random.random():
@@ -111,7 +120,11 @@ class Entity(Agent):
             return
 
         transaction_amount = random.random() * self.get_total_wealth()
-        merchant: Merchant = self.random.choices(merchants, [x.popularity for x in merchants])[0]
+        merchants_available = self.random.choices(merchants, [x.popularity for x in merchants])
+        if len(merchants_available) == 0:
+            return
+
+        merchant: Merchant = merchants_available[0]
         # TODO select UTXO's
         # Select wallets where sum of balances > amount
         w = self.wallets.copy()
@@ -128,12 +141,31 @@ class Entity(Agent):
         if merchant.trade(transaction_amount, transaction_wallets, change_wallet):
             self.wallets.append(change_wallet)
 
+    def common(self):
+        # TODO accept or reject blocks
+        cb = self.model.candidate_blocks
+
+        # Filter out blocks which are inconsistent
+
+        if len(self.model.candidate_blocks)>0:
+            blockchain_options: List[Blockchain] = random.choices(cb, [len(x) for x in cb])
+            while not blockchain_options[0].block_exists(self.blockchain.get_tail()):
+                blockchain_options: List[Blockchain] = random.choices(cb, [len(x) for x in cb])
+
+            self.blockchain = copy(blockchain_options[0])
+
+        pass
+
     def step(self):
+        self.common()
+        self.substep()
+
+    def substep(self):
         self.simulate_transactions()
 
 
 class Miner(Entity):
-    def __init__(self, uid: int, model, h: List[bool], t: float, mining_power: float):
+    def __init__(self, uid: int, model: 'MoneyModel', h: List[bool], t: float, mining_power: float):
         """
         Creates a Miner Agent
         :param h: The list of habits
@@ -152,12 +184,14 @@ class Miner(Entity):
 
         # register a Block to the model
         # Get all transactions
-        all_transactions = self.model.pending_transactions.copy()
+        all_transactions = [x for x in self.model.pending_transactions if not self.blockchain.transaction_exists(x)]
+
         self.random.shuffle(all_transactions)
         # Pick 500 transactions
         block_transactions = all_transactions[:500]
 
-        blockchain = self.model.blockchain
+        #blockchain = self.model.blockchain
+        blockchain = self.blockchain
         last_block_id = blockchain.get_tail().id
         block = Block(last_block_id, block_transactions)
 
@@ -170,14 +204,24 @@ class Miner(Entity):
 
         # Select a Exchange based on popularity
         exchanges = [x for x in self.model.schedule.agents if isinstance(x, Exchange)]
+        if len(exchanges) == 0:
+            return
         exchange_to_sell: Exchange = self.random.choice(exchanges, [x.popularity for x in exchanges])[0]
 
         change_wallet = Wallet(self.model)
         if exchange_to_sell.sell(sell_amount, self.wallets, change_wallet):
             self.wallets.append(change_wallet)
 
-    def step(self):
-        self.mine()
+    def substep(self):
+        blocks = []
+        while self.random.random() < self.mp:
+            block = self.mine()
+            blocks.append(block)
+            self.blockchain.add(block)
+
+        if len(blocks) > 0:
+            self.model.candidate_blocks.append(self.blockchain)
+            
         self.sell()
 
 
@@ -219,6 +263,10 @@ class Exchange(Entity):
         self.model.pending_transactions.append(transactions)
         return True
 
+    def substep(self):
+        # TODO For now exchange does not make any profits
+        pass
+
 
 class Merchant(Entity):
     def __init__(self, uid, model, h, popularity):
@@ -248,6 +296,10 @@ class Merchant(Entity):
         self.model.pending_transactions.append(transactions)
 
         return True
+
+    def substep(self):
+        # TODO merchant doesn't do anything independently for now
+        pass
 
 
 
