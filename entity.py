@@ -119,7 +119,7 @@ class Entity(Agent):
         if len(merchants) == 0:
             return
 
-        transaction_amount = random.random() * self.get_total_wealth()
+        transaction_amount = self.random.random() * self.get_total_wealth()
         merchants_available = self.random.choices(merchants, [x.popularity for x in merchants])
         if len(merchants_available) == 0:
             return
@@ -138,21 +138,24 @@ class Entity(Agent):
 
         change_wallet = Wallet(self.model)
 
-        if merchant.trade(transaction_amount, transaction_wallets, change_wallet):
+        if transaction_amount > 0 and merchant.trade(transaction_amount, transaction_wallets, change_wallet):
             self.wallets.append(change_wallet)
 
     def common(self):
-        # TODO accept or reject blocks
-        cb = self.model.candidate_blocks
+        # TODO Get blocks from the agents themselves
+        agents = self.model.schedule.agents
+        cb = [a.blockchain for a in agents]
+        # cb = self.model.candidate_blocks
 
         # Filter out blocks which are inconsistent
 
-        if len(self.model.candidate_blocks)>0:
-            blockchain_options: List[Blockchain] = random.choices(cb, [len(x) for x in cb])
-            while not blockchain_options[0].block_exists(self.blockchain.get_tail()):
-                blockchain_options: List[Blockchain] = random.choices(cb, [len(x) for x in cb])
-
-            self.blockchain = copy(blockchain_options[0])
+        if len(cb) > 0:
+            # TODO Get the blocks as a longest chain from a random subset
+            blockchain_options: List[Blockchain] = self.random.choices(cb, [len(x) for x in cb])
+            # while not blockchain_options[0].block_exists(self.blockchain.get_tail()):
+            #     blockchain_options: List[Blockchain] = self.random.choices(cb, [len(x) for x in cb])
+            if len(self.blockchain) < len(blockchain_options[0]):
+                self.blockchain = copy(blockchain_options[0])
 
         pass
 
@@ -206,7 +209,7 @@ class Miner(Entity):
         exchanges = [x for x in self.model.schedule.agents if isinstance(x, Exchange)]
         if len(exchanges) == 0:
             return
-        exchange_to_sell: Exchange = self.random.choice(exchanges, [x.popularity for x in exchanges])[0]
+        exchange_to_sell: Exchange = self.random.choices(exchanges, [x.popularity for x in exchanges])[0]
 
         change_wallet = Wallet(self.model)
         if exchange_to_sell.sell(sell_amount, self.wallets, change_wallet):
@@ -219,8 +222,8 @@ class Miner(Entity):
             blocks.append(block)
             self.blockchain.add(block)
 
-        if len(blocks) > 0:
-            self.model.candidate_blocks.append(self.blockchain)
+        # if len(blocks) > 0:
+        #     self.model.candidate_blocks.append(self.blockchain)
             
         self.sell()
 
@@ -234,7 +237,7 @@ class Exchange(Entity):
 
     def buy(self, amount: float, wallet: Wallet) -> bool:
         # Randomly select wallets till the amount>buy amount
-        if self.get_total_wealth() < amount:
+        if self.get_total_wealth() < amount or amount == 0:
             return False
 
         change_wallet = Wallet(self.model)
@@ -248,7 +251,7 @@ class Exchange(Entity):
 
     def sell(self, amount: float, wallets: List[Wallet], change_wallet: Wallet):
         total = sum([x.balance for x in wallets])
-        if total < amount:
+        if total < amount or amount == 0:
             return False
 
         # Randomly select a wallet

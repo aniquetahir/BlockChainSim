@@ -23,7 +23,7 @@ class MoneyModel(Model):
     pending_transactions: List[Transaction]
     candidate_blocks: List[Blockchain]
 
-    def __init__(self, N: int, habits_range: range = range(1, 10), MAX_HABITS: int = 1000,
+    def __init__(self, N: int, habits_range: range = range(1, 10), MAX_HABITS: int = 10,
                  MINER_PERCENTAGE = 0.1, SELLER_PERCENTAGE = 0.2, EXCHANGE_PERCENTAGE = 0.02):
         super().__init__()
         self.MAX_HABITS = MAX_HABITS
@@ -49,8 +49,9 @@ class MoneyModel(Model):
             is_miner_prob = self.random.random()
             # Create habits
             habits = [False]*MAX_HABITS
-            for random_habit in self.random.choices(range(MAX_HABITS)):
-                habits[random_habit] = True
+            for random_habit in range(self.random.choice(range(MAX_HABITS))):
+                habit_index = self.random.choice(range(MAX_HABITS))
+                habits[habit_index] = True
 
             # Decide whether the Agent is also a miner
             if agent_classes[i] == 'miner':
@@ -85,7 +86,7 @@ class MoneyModel(Model):
 
 
 if __name__ == "__main__":
-    m_model = MoneyModel(10)
+    m_model = MoneyModel(1000)
 
     # Print out the different types of Agents
     buyers = [x for x in m_model.schedule.agents if type(x) == Entity]
