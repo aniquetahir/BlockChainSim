@@ -15,6 +15,16 @@ class Wallet:
         self.balance = balance
         self.utxo = [balance]
 
+    def to_dict(self):
+        # TODO
+        return {
+            'balance': self.balance,
+            'utxo': self.utxo
+        }
+
+    def update_attributes(self, blockchain):
+        raise NotImplementedError('update not implemented')
+
     def add_balance(self, amount: float) -> float:
         """
         Add currency to the wallet
@@ -116,3 +126,5 @@ class Wallet:
 
         self.balance -= amount
         return True
+
+

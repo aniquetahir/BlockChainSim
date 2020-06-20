@@ -11,6 +11,12 @@ class Blockchain:
     def __init__(self, genesis: Block):
         self.blocks = [genesis]
 
+    def to_dict(self):
+        return {
+            'blocks': [x.to_dict() for x in self.blocks],
+            'hash': self.get_tail().id
+        }
+
     def get_tail(self) -> Block:
         return self.blocks[-1]
 

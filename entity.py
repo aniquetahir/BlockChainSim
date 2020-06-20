@@ -33,6 +33,17 @@ class Entity(Agent):
         self.seller = seller
         self.add_wallet()
 
+    def to_dict(self):
+        return {
+            'id': self.unique_id,
+            'habits': self.habits,
+            'blockchain': self.blockchain.to_dict(),
+            'temperature': self.temperature,
+            'wallets': [x.to_dict() for x in self.wallets],
+            'attributes': self.attributes,
+            'type': 'Entity'
+        }
+
     def tx_from_wallets(self, amount: float,
                         from_wallets: List[Wallet], to_wallet: Wallet, change_wallet: Wallet) -> Transaction:
         """
@@ -82,7 +93,7 @@ class Entity(Agent):
         return transaction
 
     def add_wallet(self, amount=0, key=None) -> Wallet:
-        w = Wallet(key, amount)
+        w = Wallet(self.model, key, amount)
         self.wallets.append(w)
         return w
 
@@ -180,10 +191,16 @@ class Miner(Entity):
         self.mp = mining_power
         self.add_wallet()
 
+    def to_dict(self):
+        m_dict = super(Miner, self).to_dict()
+        m_dict['type'] = 'Miner'
+        m_dict['mp'] = self.mp
+        return m_dict
+
     def mine(self) -> Block:
         # TODO implement mining
         # Get wallet to mine to
-        self.random.choice(self.wallets)
+        mine_wallet: Wallet = self.random.choice(self.wallets)
 
         # register a Block to the model
         # Get all transactions
@@ -192,6 +209,12 @@ class Miner(Entity):
         self.random.shuffle(all_transactions)
         # Pick 500 transactions
         block_transactions = all_transactions[:500]
+
+        # add mining reward to the block
+        reward_transaction = Transaction([{'reward': self.model.BLOCK_MINING_REWARD}],
+                                         [{mine_wallet.key: self.model.BLOCK_MINING_REWARD}])
+
+        block_transactions.append(reward_transaction)
 
         #blockchain = self.model.blockchain
         blockchain = self.blockchain
@@ -235,6 +258,11 @@ class Exchange(Entity):
         super(Exchange, self).__init__(uid, model, [], 0)
         self.popularity = popularity
 
+    def to_dict(self):
+        m_dict = super(Exchange, self).to_dict()
+        m_dict['popularity'] = self.popularity
+        return m_dict
+
     def buy(self, amount: float, wallet: Wallet) -> bool:
         # Randomly select wallets till the amount>buy amount
         if self.get_total_wealth() < amount or amount == 0:
@@ -275,6 +303,11 @@ class Merchant(Entity):
     def __init__(self, uid, model, h, popularity):
         super(Merchant, self).__init__(uid, model, h, popularity, True)
         self.popularity = popularity
+
+    def to_dict(self):
+        m_dict = super(Merchant, self).to_dict()
+        m_dict['popularity'] = self.popularity
+        return m_dict
 
     def get_habit_indices(self) -> List[int]:
         return [i for i, x in enumerate(self.habits) if x]

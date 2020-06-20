@@ -10,6 +10,13 @@ class Block:
         self.reward = []
         self.id = str(uuid4())
 
+    def to_dict(self):
+        return {
+            'hash': self.id,
+            'transactions': [x.to_dict() for x in self.transactions],
+            'prev': self.prev
+        }
+
     def transaction_exists(self, tr: Transaction) -> bool:
         for block_transaction in self.transactions:
             if block_transaction.id == tr.id:
@@ -28,5 +35,6 @@ class Block:
         self.reward = rewards
         chain.add(self)
         # TODO basic sanity check for block rewards
+
 
 

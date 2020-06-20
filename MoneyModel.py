@@ -40,6 +40,7 @@ class MoneyModel(Model):
         self.blockchain = Blockchain(Block('0', []))
         self.AVG_TRANSACTION = 0.5
         self.WEALTH_SD = 0.2
+        self.BLOCK_MINING_REWARD = 50
 
         agent_classes = random.choices(['miner', 'buyer', 'seller', 'exchange'],
                                        [MINER_PERCENTAGE, self.BUYER_PERCENTAGE, SELLER_PERCENTAGE, EXCHANGE_PERCENTAGE],
@@ -49,7 +50,7 @@ class MoneyModel(Model):
             is_miner_prob = self.random.random()
             # Create habits
             habits = [False]*MAX_HABITS
-            for random_habit in range(self.random.choice(range(MAX_HABITS))):
+            for random_habit in range(self.random.choice(range(1, MAX_HABITS))):
                 habit_index = self.random.choice(range(MAX_HABITS))
                 habits[habit_index] = True
 
@@ -101,6 +102,7 @@ if __name__ == "__main__":
 
     for i in range(10):
         m_model.step()
+        step_data = [x.to_dict() for x in m_model.schedule.agents]
 
     agent_wealth = [a.wealth for a in m_model.schedule.agents]
     plt.hist(agent_wealth)

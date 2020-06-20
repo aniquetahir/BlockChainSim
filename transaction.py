@@ -15,8 +15,17 @@ class Transaction:
         if not is_fine:
             raise Exception('Error in transaction')
 
+    def to_dict(self):
+        return {
+            'hash': self.id,
+            'inputs': self.inputs,
+            'outputs': self.outputs
+        }
+
     def _verify(self) -> bool:
-        input_sum = sum([y for x, y in self.inputs])
-        output_sum = sum([y for x, y in self.inputs])
+        input_sum = sum([z for x in self.inputs for y, z in x.items()])
+        output_sum = sum([z for x in self.inputs for y, z in x.items()])
 
         return input_sum == output_sum
+
+
