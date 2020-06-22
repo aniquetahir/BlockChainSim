@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import List, Dict
+from collections import defaultdict
+from typing import List, Dict, Union
 from wallet import Wallet
 from mesa import Agent, Model
 # from MoneyModel import MoneyModel
@@ -217,7 +218,30 @@ class Miner(Entity):
         m_dict['mp'] = self.mp
         return m_dict
 
-    def mine(self) -> Block:
+    def validate_transactions(self, txs: List[Transaction]) -> bool:
+        # Get all wallets
+        wallets: Dict[str, float] = {}
+        for agent in self.model.schedule.agents:
+            agent: Entity
+            t_wallets = agent.wallets
+            for w in t_wallets:
+                w.context = self.blockchain
+                wallets[w.key] = w.balance
+        # Update the balance of wallets according to the current chain
+
+        # for each transaction, see how the balance changes in order
+        for tx in txs:
+            for i in tx.inputs:
+                wallets[i['address']] -= i['amount']
+                if wallets[i['address']] < 0:
+                    return False
+            for o in tx.outputs:
+                wallets[o['address']] += o['amount']
+        #   if there is negative balance for a wallet at a particular transaction return False
+        # Otherwise return True
+        return True
+
+    def mine(self) -> Union[Block, None]:
         # TODO implement mining
         # Get wallet to mine to
         mine_wallet: Wallet = self.random.choice(self.wallets)
@@ -230,9 +254,13 @@ class Miner(Entity):
         # Pick 500 transactions
         block_transactions = all_transactions[:500]
 
+        # TODO check that the transactions are valid i.e. the wallets are spending the amount that they have
+        if not self.validate_transactions(block_transactions):
+            return None
+
         # add mining reward to the block
-        reward_transaction = Transaction([{'reward': self.model.BLOCK_MINING_REWARD}],
-                                         [{mine_wallet.key: self.model.BLOCK_MINING_REWARD}])
+        reward_transaction = Transaction([{'address': 'reward', 'amount': self.model.BLOCK_MINING_REWARD}],
+                                         [{'address': mine_wallet.key, 'amount': self.model.BLOCK_MINING_REWARD}])
 
         block_transactions.append(reward_transaction)
 
@@ -265,8 +293,9 @@ class Miner(Entity):
         blocks = []
         while self.random.random() < self.mp:
             block = self.mine()
-            blocks.append(block)
-            self.blockchain.add(block)
+            if block:
+                blocks.append(block)
+                self.blockchain.add(block)
 
         # if len(blocks) > 0:
         #     self.model.candidate_blocks.append(self.blockchain)
@@ -302,19 +331,20 @@ class Exchange(Entity):
         return True
 
     def sell(self, amount: float, wallets: List[Wallet], change_wallet: Wallet):
-        self.refresh_wallet_context()
+        # self.refresh_wallet_context()
+        # TODO decide on which context to use. presently using the sellers context
         total = sum([x.balance for x in wallets])
         if total < amount or amount == 0:
             return False
 
         # Randomly select a wallet
         if len(self.wallets) == 0:
-            deposit_wallet = Wallet(self.model, context=self.blockchain)
+            deposit_wallet = Wallet(self.model, context=wallets[0].context)
             self.wallets.append(deposit_wallet)
         else:
             deposit_wallet = self.random.choice(self.wallets)
 
-        transactions = self.tx_from_wallets(amount, wallets, deposit_wallet, change_wallet)
+        transactions = self.tx_from_wallets(amount, wallets, deposit_wallet, change_wallet, context=wallets[0].context)
 
         self.model.pending_transactions.append(transactions)
         return True
@@ -342,19 +372,20 @@ class Merchant(Entity):
     #     raise NotImplementedError('Merchant habit index')
 
     def trade(self, amount: float, wallets: List[Wallet], change_wallet: Wallet) -> bool:
-        self.refresh_wallet_context()
+        # self.refresh_wallet_context()
+        # TODO decide on the context to use. presently using the callers context
         total = sum([x.balance for x in wallets])
         if total < amount:
             return False
 
         # Randomly select a wallet
         if len(self.wallets) == 0:
-            deposit_wallet = Wallet(self.model, context=self.blockchain)
+            deposit_wallet = Wallet(self.model, context=wallets[0].context)
             self.wallets.append(deposit_wallet)
         else:
             deposit_wallet = self.random.choice(self.wallets)
 
-        transactions = self.tx_from_wallets(amount, wallets, deposit_wallet, change_wallet)
+        transactions = self.tx_from_wallets(amount, wallets, deposit_wallet, change_wallet, context=wallets[0].context)
 
         self.model.pending_transactions.append(transactions)
 

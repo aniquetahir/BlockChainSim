@@ -1,9 +1,9 @@
-from typing import List, Dict, TypeVar
+from typing import List, Dict, TypeVar, Union
 from uuid import uuid4
 
 
 class Transaction:
-    def __init__(self, inputs: List[Dict[str, float]], outputs: List[Dict[str, float]]):
+    def __init__(self, inputs: List[Dict[str, Union[str, float]]], outputs: List[Dict[str, Union[str, float]]]):
         """
         :param inputs: The inputs are a List of {address: amount}
         :param outputs: The outputs are a List of {address: amount}
@@ -23,8 +23,8 @@ class Transaction:
         }
 
     def _verify(self) -> bool:
-        input_sum = sum([z for x in self.inputs for y, z in x.items()])
-        output_sum = sum([z for x in self.inputs for y, z in x.items()])
+        input_sum = sum([abs(x['amount']) for x in self.inputs])
+        output_sum = sum([abs(x['amount']) for x in self.outputs])
 
         return input_sum == output_sum
 

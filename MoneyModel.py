@@ -87,7 +87,7 @@ class MoneyModel(Model):
 
 
 if __name__ == "__main__":
-    m_model = MoneyModel(1000)
+    m_model = MoneyModel(100)
 
     # Print out the different types of Agents
     buyers = [x for x in m_model.schedule.agents if type(x) == Entity]

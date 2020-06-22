@@ -12,11 +12,11 @@ class Wallet:
     balance: float
     utxo: List[float]
 
-    def __init__(self, model, key=None, context: 'Blockchain' = None):
+    def __init__(self, model, key: str = None, context: 'Blockchain' = None):
         if key:
             self.key = key
         else:
-            self.key = uuid.uuid4()
+            self.key = str(uuid.uuid4())
         self.model = model
         # self.balance = balance
         # self.utxo = []
@@ -29,14 +29,14 @@ class Wallet:
         utxo = []
         inputs = []
         for block in self.context.blocks:
-            running_utxo = [y[self.key] for x in block.transactions for y in x.outputs if self.key in y.keys()]
+            running_utxo = [y['amount'] for x in block.transactions for y in x.outputs if self.key == y['address']]
             for x in running_utxo:
                 utxo.append(x)
         # get inputs which have the wallet key and remove them from utxo
         # TODO: Note: There is currently no id associated with a specific utxo, I am just randomly picking one which is
         # the same
         for block in self.context.blocks:
-            running_inputs = [y[self.key] for x in block.transactions for y in x.inputs if self.key in y.keys()]
+            running_inputs = [y['amount'] for x in block.transactions for y in x.inputs if self.key == y['address']]
             for x in running_inputs:
                 inputs.append(x)
 
@@ -55,8 +55,8 @@ class Wallet:
         amount_sent = 0
         for block in self.context.blocks:
             transactions: List['Transaction'] = block.transactions
-            amount_received += sum([y[self.key] for x in transactions for y in x.outputs if self.key in y.keys()])
-            amount_sent += sum([y[self.key] for x in transactions for y in x.inputs if self.key in y.keys()])
+            amount_received += sum([y['amount'] for x in transactions for y in x.outputs if self.key == y['address']])
+            amount_sent += sum([y['amount'] for x in transactions for y in x.inputs if self.key == y['address']])
 
         # Return difference
         return amount_received - amount_sent
@@ -106,7 +106,7 @@ class Wallet:
         # TODO Transaction Fee simulation
         elif sum([x for x in t_utxo if x < amount]) < amount:
             min_greater = min([x for x in t_utxo if x > amount])
-            t_utxo.append(min_greater)
+            r_utxo.append(min_greater)
 
         # Else Bitcoin Core does 1000 rounds of randomly combining unspent transaction outputs until their
         # sum is greater than or equal to the Target.
@@ -130,7 +130,7 @@ class Wallet:
                                 fReachedTarget = True
                                 if nTotal<nBest:
                                     nBest = nTotal
-                                    vfBest = vIncluded
+                                    vfBest = vIncluded.copy()
                                 nTotal -= t_utxo[i]
                                 vIncluded[i] = False
                     nPass+=1

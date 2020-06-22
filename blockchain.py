@@ -6,10 +6,14 @@ from copy import copy
 
 class Blockchain:
     blocks: List[Block]
+    hash: str
 
     # TODO Model constructor
     def __init__(self, genesis: Block):
         self.blocks = [genesis]
+
+    def hash(self) -> str:
+        return self.get_tail().id
 
     def to_dict(self):
         return {
