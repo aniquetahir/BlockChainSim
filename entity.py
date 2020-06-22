@@ -45,12 +45,19 @@ class Entity(Agent):
         }
 
     def tx_from_wallets(self, amount: float,
-                        from_wallets: List[Wallet], to_wallet: Wallet, change_wallet: Wallet) -> Transaction:
+                        from_wallets: List[Wallet], to_wallet: Wallet, change_wallet: Wallet,
+                        context=None) -> Transaction:
         """
 
         :rtype: Transaction
         """
+        if not context:
+            context = self.blockchain
+
         wallets = from_wallets.copy()
+        for w in wallets:
+            w.context = context
+
         self.random.shuffle(wallets)
 
         sending_wallets = []
@@ -71,17 +78,20 @@ class Entity(Agent):
 
         running_total = sum([x.balance for x in sending_wallets[:-1]])
 
-        final_utxo = sending_wallets[-1].utxo.copy()
+        final_utxo, final_change = sending_wallets[-1].get_utxo(amount - running_total)
         final_key = sending_wallets[-1].key
         self.random.shuffle(final_utxo)
 
         for i in final_utxo:
             transactions_from.append({'address': final_key, 'amount': i})
-            running_total += i
-            if running_total > amount:
-                break
 
-        change = running_total - amount
+        # for i in final_utxo:
+        #     transactions_from.append({'address': final_key, 'amount': i})
+        #     running_total += i
+        #     if running_total > amount:
+        #         break
+
+        change = final_change
 
         # Create a change address
         # change_wallet = Wallet(self.model)
@@ -92,15 +102,21 @@ class Entity(Agent):
         transaction = Transaction(transactions_from, transactions_to)
         return transaction
 
-    def add_wallet(self, amount=0, key=None) -> Wallet:
-        w = Wallet(self.model, key, amount)
+    def add_wallet(self, key=None) -> Wallet:
+        w = Wallet(self.model, key, self.blockchain)
         self.wallets.append(w)
         return w
 
-    def get_total_wealth(self) -> float:
-        return sum([x.balance for x in self.wallets])
+    def get_total_wealth(self, context=None) -> float:
+        if not context:
+            context = self.blockchain
+        wallets = self.wallets.copy()
+        for w in wallets:
+            w.context = context
+        return sum([x.balance for x in wallets])
 
     def simulate_transactions(self):
+        self.refresh_wallet_context()
         # Buy currency using exchange
         buy_decision = self.random.random()
         if buy_decision < 0.5:
@@ -147,10 +163,16 @@ class Entity(Agent):
             transaction_wallets.append(w[i])
             total += w[i].balance
 
-        change_wallet = Wallet(self.model)
+        change_wallet = Wallet(self.model, context=self.blockchain)
 
         if transaction_amount > 0 and merchant.trade(transaction_amount, transaction_wallets, change_wallet):
             self.wallets.append(change_wallet)
+
+    def refresh_wallet_context(self, context=None):
+        if not context:
+            context = self.blockchain
+        for w in self.wallets:
+            w.context = context
 
     def common(self):
         # TODO Get blocks from the agents themselves
@@ -167,8 +189,6 @@ class Entity(Agent):
             #     blockchain_options: List[Blockchain] = self.random.choices(cb, [len(x) for x in cb])
             if len(self.blockchain) < len(blockchain_options[0]):
                 self.blockchain = copy(blockchain_options[0])
-
-        pass
 
     def step(self):
         self.common()
@@ -216,7 +236,7 @@ class Miner(Entity):
 
         block_transactions.append(reward_transaction)
 
-        #blockchain = self.model.blockchain
+        # blockchain = self.model.blockchain
         blockchain = self.blockchain
         last_block_id = blockchain.get_tail().id
         block = Block(last_block_id, block_transactions)
@@ -224,7 +244,7 @@ class Miner(Entity):
         return block
 
     def sell(self):
-        # TODO implement
+        self.refresh_wallet_context()
         # Select an amount to sell
         sell_amount = self.get_total_wealth() * self.random.random()
 
@@ -232,9 +252,12 @@ class Miner(Entity):
         exchanges = [x for x in self.model.schedule.agents if isinstance(x, Exchange)]
         if len(exchanges) == 0:
             return
+
+        # Randomly select exchanges based on their popularity
+        # TODO exchange preferences based on agents can be implemented
         exchange_to_sell: Exchange = self.random.choices(exchanges, [x.popularity for x in exchanges])[0]
 
-        change_wallet = Wallet(self.model)
+        change_wallet = Wallet(self.model, context=self.blockchain)
         if exchange_to_sell.sell(sell_amount, self.wallets, change_wallet):
             self.wallets.append(change_wallet)
 
@@ -247,7 +270,7 @@ class Miner(Entity):
 
         # if len(blocks) > 0:
         #     self.model.candidate_blocks.append(self.blockchain)
-            
+
         self.sell()
 
 
@@ -264,11 +287,12 @@ class Exchange(Entity):
         return m_dict
 
     def buy(self, amount: float, wallet: Wallet) -> bool:
+        self.refresh_wallet_context()
         # Randomly select wallets till the amount>buy amount
         if self.get_total_wealth() < amount or amount == 0:
             return False
 
-        change_wallet = Wallet(self.model)
+        change_wallet = Wallet(self.model, context=self.blockchain)
         self.wallets.append(change_wallet)
 
         transaction = self.tx_from_wallets(amount, self.wallets, wallet, change_wallet)
@@ -278,13 +302,14 @@ class Exchange(Entity):
         return True
 
     def sell(self, amount: float, wallets: List[Wallet], change_wallet: Wallet):
+        self.refresh_wallet_context()
         total = sum([x.balance for x in wallets])
         if total < amount or amount == 0:
             return False
 
         # Randomly select a wallet
         if len(self.wallets) == 0:
-            deposit_wallet = Wallet(self.model)
+            deposit_wallet = Wallet(self.model, context=self.blockchain)
             self.wallets.append(deposit_wallet)
         else:
             deposit_wallet = self.random.choice(self.wallets)
@@ -295,13 +320,14 @@ class Exchange(Entity):
         return True
 
     def substep(self):
-        # TODO For now exchange does not make any profits
+        # TODO For now exchange does not make any profits or perform independent operations other than buying or selling
         pass
 
 
 class Merchant(Entity):
     def __init__(self, uid, model, h, popularity):
         super(Merchant, self).__init__(uid, model, h, popularity, True)
+        # TODO Distribution for merchant items prices can be used
         self.popularity = popularity
 
     def to_dict(self):
@@ -316,13 +342,14 @@ class Merchant(Entity):
     #     raise NotImplementedError('Merchant habit index')
 
     def trade(self, amount: float, wallets: List[Wallet], change_wallet: Wallet) -> bool:
+        self.refresh_wallet_context()
         total = sum([x.balance for x in wallets])
         if total < amount:
             return False
 
         # Randomly select a wallet
         if len(self.wallets) == 0:
-            deposit_wallet = Wallet(self.model)
+            deposit_wallet = Wallet(self.model, context=self.blockchain)
             self.wallets.append(deposit_wallet)
         else:
             deposit_wallet = self.random.choice(self.wallets)
@@ -336,6 +363,3 @@ class Merchant(Entity):
     def substep(self):
         # TODO merchant doesn't do anything independently for now
         pass
-
-
-
