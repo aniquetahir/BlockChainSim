@@ -1,3 +1,4 @@
+from tqdm import tqdm
 from mesa import Model, Agent
 from entity import Entity, Miner, Exchange, Merchant
 # from typing import Dict, ClassVar
@@ -8,6 +9,7 @@ from blockchain import Blockchain
 from block import Block
 from transaction import Transaction
 from typing import List
+import json
 
 RANDOM_SEED = 123
 random.seed(RANDOM_SEED)
@@ -100,12 +102,17 @@ if __name__ == "__main__":
     print("Exchanges: %d" % len(exchanges))
     print("Miners: %d" % len(miners))
 
-    for i in range(10):
+    simulation = []
+    for i in tqdm(range(100)):
         m_model.step()
         step_data = [x.to_dict() for x in m_model.schedule.agents]
+        simulation.append(step_data)
 
-    agent_wealth = [a.wealth for a in m_model.schedule.agents]
-    plt.hist(agent_wealth)
-    plt.show()
+    with open('simulation.json', 'w') as sim_file:
+        json.dump(simulation, sim_file)
+
+    # agent_wealth = [a.wealth for a in m_model.schedule.agents]
+    # plt.hist(agent_wealth)
+    # plt.show()
 
 
