@@ -1,0 +1,3 @@
+[submodule "bezier-curved-edges-networkx"]
+	path = bezier-curved-edges-networkx
+	url = https://github.com/beyondbeneath/bezier-curved-edges-networkx.git

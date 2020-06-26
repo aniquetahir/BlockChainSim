@@ -73,6 +73,10 @@ class Entity(Agent):
         # Create a list of transactions
         transactions_from = []
         for i in sending_wallets[:-1]:
+            # if sum(i.utxo) > i.balance:
+            #     print('wtf')
+            #     print(i.utxo)
+            #     print(i.balance)
             one_from = [{'address': i.key, 'amount': x} for x in i.utxo]
             for j in one_from:
                 transactions_from.append(j)
@@ -130,7 +134,7 @@ class Entity(Agent):
                 buy_wallet = self.random.choice(self.wallets)
 
                 # Select an amount to buy
-                amount = max(self.random.gauss(self.model.AVG_TRANSACTION, self.model.WEALTH_SD), 0)
+                amount = max(round(self.random.gauss(self.model.AVG_TRANSACTION, self.model.WEALTH_SD), 4), 0)
 
                 exchange.buy(amount, buy_wallet)
 
@@ -147,7 +151,7 @@ class Entity(Agent):
         if len(merchants) == 0:
             return
 
-        transaction_amount = self.random.random() * self.get_total_wealth()
+        transaction_amount = round(self.random.random() * self.get_total_wealth(), 5)
         merchants_available = self.random.choices(merchants, [x.popularity for x in merchants])
         if len(merchants_available) == 0:
             return
@@ -163,6 +167,7 @@ class Entity(Agent):
         while total < transaction_amount:
             transaction_wallets.append(w[i])
             total += w[i].balance
+            i += 1
 
         change_wallet = Wallet(self.model, context=self.blockchain)
 
@@ -241,6 +246,31 @@ class Miner(Entity):
         # Otherwise return True
         return True
 
+    def get_valid_tx_subset(self, txs: List[Transaction]) -> List[Transaction]:
+        wallets: Dict[str, List[float]] = {}
+        for agent in self.model.schedule.agents:
+            agent: Entity
+            t_wallets = agent.wallets
+            for w in t_wallets:
+                w.context = self.blockchain
+                wallets[w.key] = w.utxo
+        # Update the balance of wallets according to the current chain
+        valid_subset = []
+        for tx in txs:
+            tx_valid = True
+            for i in tx.inputs:
+                if i['amount'] in wallets[i['address']]:
+                    wallets[i['address']].remove(i['amount'])
+                else:
+                    tx_valid = False
+                    break
+            if not tx_valid:
+                continue
+            for o in tx.outputs:
+                wallets[o['address']].append(o['amount'])
+            valid_subset.append(tx)
+        return valid_subset
+
     def mine(self) -> Union[Block, None]:
         # TODO implement mining
         # Get wallet to mine to
@@ -254,13 +284,15 @@ class Miner(Entity):
         # Pick 500 transactions
         block_transactions = all_transactions[:500]
 
+        block_transactions = self.get_valid_tx_subset(block_transactions)
         # TODO check that the transactions are valid i.e. the wallets are spending the amount that they have
         if not self.validate_transactions(block_transactions):
             return None
 
         # add mining reward to the block
         reward_transaction = Transaction([{'address': 'reward', 'amount': self.model.BLOCK_MINING_REWARD}],
-                                         [{'address': mine_wallet.key, 'amount': self.model.BLOCK_MINING_REWARD}])
+                                         [{'address': mine_wallet.key, 'amount': self.model.BLOCK_MINING_REWARD}],
+                                         'reward')
 
         block_transactions.append(reward_transaction)
 
@@ -274,7 +306,7 @@ class Miner(Entity):
     def sell(self):
         self.refresh_wallet_context()
         # Select an amount to sell
-        sell_amount = self.get_total_wealth() * self.random.random()
+        sell_amount = round(self.get_total_wealth() * self.random.random(), 4)
 
         # Select a Exchange based on popularity
         exchanges = [x for x in self.model.schedule.agents if isinstance(x, Exchange)]
@@ -325,6 +357,7 @@ class Exchange(Entity):
         self.wallets.append(change_wallet)
 
         transaction = self.tx_from_wallets(amount, self.wallets, wallet, change_wallet)
+        transaction.memo = "buying from exchange"
 
         # Add to pending transactions
         self.model.pending_transactions.append(transaction)
@@ -345,6 +378,7 @@ class Exchange(Entity):
             deposit_wallet = self.random.choice(self.wallets)
 
         transactions = self.tx_from_wallets(amount, wallets, deposit_wallet, change_wallet, context=wallets[0].context)
+        transactions.memo = 'selling to exchange'
 
         self.model.pending_transactions.append(transactions)
         return True
@@ -386,6 +420,7 @@ class Merchant(Entity):
             deposit_wallet = self.random.choice(self.wallets)
 
         transactions = self.tx_from_wallets(amount, wallets, deposit_wallet, change_wallet, context=wallets[0].context)
+        transactions.memo = "trading with a merchant"
 
         self.model.pending_transactions.append(transactions)
 

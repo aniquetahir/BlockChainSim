@@ -11,9 +11,10 @@ class Blockchain:
     # TODO Model constructor
     def __init__(self, genesis: Block):
         self.blocks = [genesis]
+        self.hash = genesis.id
 
-    def hash(self) -> str:
-        return self.get_tail().id
+    def get_hash(self) -> str:
+        return self.blocks[-1].id
 
     def to_dict(self):
         return {
@@ -50,11 +51,13 @@ class Blockchain:
         last_block = self.get_tail()
         block.prev = last_block.id
         self.blocks.append(block)
+        self.hash = self.get_tail().id
 
     def __copy__(self) -> 'Blockchain':
         # TODO implement this
         bc_copy = Blockchain(self.blocks[0])
         bc_copy.blocks = copy(self.blocks)
+        bc_copy.hash = self.hash
         return bc_copy
 
     def queue_transaction(self):

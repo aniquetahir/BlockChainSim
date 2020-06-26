@@ -21,11 +21,15 @@ class Wallet:
         # self.balance = balance
         # self.utxo = []
         self.context = context
+        self.utxo_cache = {}
+        self.balance_cache = {}
 
     @property
     def utxo(self) -> List[float]:
         if not self.context:
             return []
+        if self.utxo_cache.get(self.context.hash) is not None:
+            return self.utxo_cache[self.context.hash].copy()
         utxo = []
         inputs = []
         for block in self.context.blocks:
@@ -42,7 +46,7 @@ class Wallet:
 
         for i in inputs:
             utxo.remove(i)
-
+        self.utxo_cache[self.context.hash] = utxo.copy()
         return utxo
 
     @property
@@ -50,16 +54,30 @@ class Wallet:
         # Base case: no context return zero
         if not self.context:
             return 0
+
+        if self.balance_cache.get(self.context.hash) is not None:
+            return self.balance_cache[self.context.hash]
+
         # Get amount recieved and sent
+        c_balance = 0
         amount_received = 0
         amount_sent = 0
         for block in self.context.blocks:
-            transactions: List['Transaction'] = block.transactions
-            amount_received += sum([y['amount'] for x in transactions for y in x.outputs if self.key == y['address']])
-            amount_sent += sum([y['amount'] for x in transactions for y in x.inputs if self.key == y['address']])
+            if self.balance_cache.get(block.id) is not None:
+                c_balance = self.balance_cache[block.id]
+                amount_received = 0
+                amount_sent = 0
+            else:
+                transactions: List['Transaction'] = block.transactions
+                amount_received += sum([y['amount'] for x in transactions for y in x.outputs if self.key == y['address']])
+                amount_sent += sum([y['amount'] for x in transactions for y in x.inputs if self.key == y['address']])
+                self.balance_cache[block.id] = c_balance + amount_received - amount_sent
+
 
         # Return difference
-        return amount_received - amount_sent
+        diff = c_balance + amount_received - amount_sent
+        self.balance_cache[self.context.hash] = diff
+        return diff
 
     def to_dict(self):
         # TODO
@@ -124,7 +142,7 @@ class Wallet:
                 while nPass < 2 and not fReachedTarget:
                     for i in range(len(t_utxo)):
                         if nPass == 0 and self.model.random.choice([True, False]) or not vIncluded[i]:
-                            nTotal += self.utxo[i]
+                            nTotal += t_utxo[i]
                             vIncluded[i] = True
                             if nTotal >= amount:
                                 fReachedTarget = True

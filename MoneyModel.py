@@ -1,4 +1,5 @@
 from tqdm import tqdm
+from collections import defaultdict
 from mesa import Model, Agent
 from entity import Entity, Miner, Exchange, Merchant
 # from typing import Dict, ClassVar
@@ -34,6 +35,7 @@ class MoneyModel(Model):
         self.schedule = RandomActivation(self)
         self.TRANSACTIONS_PER_BLOCK = 500
         self.pending_transactions = []
+        self.transaction_age = defaultdict(int)
         self.candidate_blocks = []
         self.MINER_PERCENTAGE = MINER_PERCENTAGE
         self.SELLER_PERCENTAGE = SELLER_PERCENTAGE
@@ -43,6 +45,7 @@ class MoneyModel(Model):
         self.AVG_TRANSACTION = 0.5
         self.WEALTH_SD = 0.2
         self.BLOCK_MINING_REWARD = 50
+        self.TRANSACTION_EXPIRY = 3
 
         agent_classes = random.choices(['miner', 'buyer', 'seller', 'exchange'],
                                        [MINER_PERCENTAGE, self.BUYER_PERCENTAGE, SELLER_PERCENTAGE, EXCHANGE_PERCENTAGE],
@@ -72,6 +75,15 @@ class MoneyModel(Model):
 
     def step(self):
         self.schedule.step()
+        # for pending transactions. increase transaction age
+        for tr in self.pending_transactions:
+            self.transaction_age[tr.id] += 1
+        # remove transactions which are old
+        t_pending_transactions = []
+        for tr in self.pending_transactions:
+            if self.transaction_age[tr.id] <= self.TRANSACTION_EXPIRY:
+                t_pending_transactions.append(tr)
+        self.pending_transactions = t_pending_transactions
         # Select Miners and Register pending transactions
 
 

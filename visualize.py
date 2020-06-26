@@ -1,11 +1,15 @@
 #! /usr/bin/env python3
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
+from fa2 import ForceAtlas2
+from curved_edges import curved_edges
 from collections import defaultdict
 import json
 import networkx as nx
 import sys
 from tqdm import tqdm
+import pickle
 
 
 def get_wallet_balances(blockchain):
@@ -54,7 +58,6 @@ def visualize(sim_data):
         master_chain = active_chains[frequent_chains[-1][0]]['chain']
         # Get the value of wallets according to the longest chain
         balances = get_wallet_balances(master_chain)
-        continue
         # Get wallet -> node mapping
         # Get the value of nodes by accumulating the wallet wealth
         wallet_agent = {}
@@ -75,16 +78,19 @@ def visualize(sim_data):
         G = nx.DiGraph()
         node_sizes = []
         for a in step:
-            G.add_node(a['id'])
+            G.add_node(a['id'], weight=agent_wealth[a['id']])
             node_sizes.append(agent_wealth[a['id']])
+        # node_sizes = [x*100 for x in node_sizes]
 
         edge_weights = []
         for n, w in node_node_transactions.items():
-            G.add_edge(*n, {'weight': w})
+            G.add_edge(n[0], n[1], weight=w)
 
-        pos = nx.layout.spring_layout(G)
-        nodes = nx.draw_networkx_nodes(G, pos, node_sizes=node_sizes, node_color='blue')
-        edges = nx.draw_networkx_edges(G, pos, node_sizes=node_sizes, arrowstyle='->', arrowsize=10, edge_cmap=plt.cm.Blues, width=2)
+        # node_sizes = [v * 100 for v in nx.degree(G).values()]
+        pos = nx.layout.fruchterman_reingold_layout(G, iterations=200)
+        # pos = nx.layout.spring_layout(G)
+        nodes = nx.draw_networkx_nodes(G, pos, node_size=node_sizes, node_color='blue')
+        edges = nx.draw_networkx_edges(G, pos, arrowstyle='->', arrowsize=10, edge_cmap=plt.cm.Blues, width=2)
 
         # pc = mpl.collections.PatchCollection(edges, cmap=plt.cm.Blues)
 
@@ -100,8 +106,8 @@ def visualize(sim_data):
 
 if __name__ == "__main__":
     simulation_path = sys.argv[1]
-    with open(simulation_path) as sim_file:
-        simulation_data = json.load(sim_file)
+    with open(simulation_path, 'rb') as sim_file:
+        simulation_data = pickle.load(sim_file)
 
     visualize(simulation_data)
 
