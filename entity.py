@@ -345,6 +345,7 @@ class Exchange(Entity):
     def to_dict(self):
         m_dict = super(Exchange, self).to_dict()
         m_dict['popularity'] = self.popularity
+        m_dict['type'] = 'Exchange'
         return m_dict
 
     def buy(self, amount: float, wallet: Wallet) -> bool:
@@ -397,6 +398,7 @@ class Merchant(Entity):
     def to_dict(self):
         m_dict = super(Merchant, self).to_dict()
         m_dict['popularity'] = self.popularity
+        m_dict['type'] = 'Merchant'
         return m_dict
 
     def get_habit_indices(self) -> List[int]:
